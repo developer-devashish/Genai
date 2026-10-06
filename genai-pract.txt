@@ -22,21 +22,19 @@ image.show()
 
 
 ----------------Text to Text Language Translation------------------------------------------------------------------
-!pip install translate
+!pip install -q transformers sentencepiece
 
-from translate import Translator
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+
+m = "Helsinki-NLP/opus-mt-en-hi"
+t = AutoTokenizer.from_pretrained(m)
+model = AutoModelForSeq2SeqLM.from_pretrained(m)
 
 text = input("Enter text: ")
-target = input("Enter the language code(en, hi, mr): ")
+x = t(text, return_tensors="pt")
+y = model.generate(**x)
 
-try:
-	translator = Translator(to_lang=target)
-	translated_text = translator.translate(text)
-
-	print(translated_text)
-
-except Exception as e:
-	print(e)
+print(t.decode(y[0], skip_special_tokens=True))
 
 
 --------------------Text to Music Generation-----------------------------------------------------------------------
