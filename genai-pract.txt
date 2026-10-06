@@ -56,11 +56,18 @@ print("Music generated successfully")
 
 -------------------------Image to Text Generation-----------------------------------------------------------------------
 
+!pip install -q transformers torch pillow
+
 from transformers import BlipProcessor, BlipForConditionalGeneration
 from PIL import Image
 
-processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
-model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base")
+processor = BlipProcessor.from_pretrained(
+    "Salesforce/blip-image-captioning-base"
+)
+
+model = BlipForConditionalGeneration.from_pretrained(
+    "Salesforce/blip-image-captioning-base"
+)
 
 image = Image.open("image.jpg")
 
@@ -70,7 +77,6 @@ output = model.generate(**inputs)
 text = processor.decode(output[0], skip_special_tokens=True)
 
 print("Generated Text:", text)
-
 
 -------------------------------Text to Speech Generation-------------------------------------------------------------------------
 !pip install gtts
@@ -122,23 +128,43 @@ while True:
     print("Bot:", response[0]["generated_text"])
 
 -----------------------------------Image to Sketch Generation------------------------------------------------------------------------
-import cv2
+!pip install -q diffusers transformers accelerate controlnet_aux
+
+import cv2, torch
+from PIL import Image
 from google.colab import files
-from google.colab.patches import cv2_imshow
+from diffusers import ControlNetModel, StableDiffusionControlNetPipeline
+from controlnet_aux import CannyDetector
 
-uploaded = files.upload()
-filename = next(iter(uploaded))
+# Upload
+f = files.upload()
+img = cv2.imread(next(iter(f)))
 
-img = cv2.imread(filename)
+# Canny edges
+edges = CannyDetector()(img)
+edges = Image.fromarray(edges).convert("RGB").resize((512, 512))
 
-gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-invert = cv2.bitwise_not(gray)
-blur = cv2.GaussianBlur(invert, (21, 21), 0)
-sketch = cv2.divide(gray, 255 - blur, scale=256)
+# Models
+controlnet = ControlNetModel.from_pretrained(
+    "lllyasviel/sd-controlnet-canny",
+    torch_dtype=torch.float16
+)
 
-cv2.imwrite("sketch.jpg", sketch)
+pipe = StableDiffusionControlNetPipeline.from_pretrained(
+    "runwayml/stable-diffusion-v1-5",
+    controlnet=controlnet,
+    torch_dtype=torch.float16
+).to("cuda")
 
-cv2_imshow(sketch)
+# Generate
+sketch = pipe(
+    "black and white pencil sketch",
+    image=edges,
+    num_inference_steps=20
+).images[0]
+
+sketch.save("sketch.png")
+display(sketch)
 
 --------------------------------Music to Text Generation-----------------------------------------------------------------------------
 !pip install -q openai-whisper
